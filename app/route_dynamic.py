@@ -1175,3 +1175,208 @@ def redirect_wallet():
                 },
             )
         )
+
+def dc4eu_api_call(form_data):
+    """Handles the API call to the dc4eu datastore"""
+
+    api_endpoint = "http://your.local.ip.address:9080/api/v1/document/collect_id"
+
+    # We can use the information in "form_data" (from PID authentication) to populate the payload.
+    # Note, we assume that the PID contains a field "authentic_source_person_id".
+    session["country"] = form_data["issuing_country"]
+    payload = {
+        "authentic_source": "authentic_source_" + form_data.get("nationality").lower(),
+        "collect_id": form_data.get("collect_id"),
+        "document_type": form_data.get("document_type"),
+        "identity": {
+            "authentic_source_person_id": form_data.get("authentic_source_person_id"),
+            "birth_city": "",
+            "birth_country": "",
+            "birth_date": form_data["birth_date"],
+            "birth_place": "",
+            "birth_state": "",
+            "family_name": form_data["family_name"],
+            "family_name_at_birth": "",
+            "gender": "",
+            "given_name": form_data["given_name"],
+            "given_name_at_birth": "",
+            "nationality": "",
+            "resident_address": "",
+            "resident_city": "",
+            "resident_country": "",
+            "resident_house_number": "",
+            "resident_postal_code": "",
+            "resident_state": "",
+            "resident_street": "",
+            "schema": {
+                "name": "DefaultSchema",
+                "version": "1.0.0"
+            }
+        }
+    }
+
+    try:
+        # Make the API call
+        response = requests.post(api_endpoint, json=payload)
+        response.raise_for_status()
+
+        # Log success and return response to the frontend
+        cfgserv.app_logger.info(f"API call successful: {response.json()}")
+
+        api_data = response.json()
+        document_data = api_data["data"]["document_data"]
+        if form_data.get("document_type") == "EHIC":
+            mapped_form = {
+                'subject' : [{
+                    'family_name': document_data["subject"].get("family_name"),
+                    'given_name': document_data["subject"].get("forename"),
+                    'birth_date': document_data["subject"].get("date_of_birth"),
+                }],
+                'social_security_pin': document_data.get("social_security_pin"),
+                'starting_date': document_data["period_entitlement"].get("starting_date"),
+                'ending_date': document_data["period_entitlement"].get("ending_date"),
+                'document_id': document_data.get("document_id"),
+                'competent_institution' :[{
+                    'institution_id': document_data["competent_institution"].get("institution_id"),
+                    'institution_name': document_data["competent_institution"].get("institution_name"),
+                    'country_code': document_data["competent_institution"].get("institution_country"),
+                }],
+                'version': '0.5',
+                'issuing_country': 'FC',
+                'issuing_authority': 'Test MDL issuer'
+            }
+        elif form_data.get("document_type") == "PDA1":
+            list_details_of_employment = []
+
+            for item in document_data["details_of_employment"]:
+                temp_dict = {
+                        'type_of_employment': item.get("type_of_employment"),
+                        'name': item.get("name"),
+                        'employer_id': item["ids_of_employer"][0].get("employer_id"),
+                        'type_of_id': item["ids_of_employer"][0].get("type_of_id"),
+                        'street': item["address"].get("street"),
+                        'town': item["address"].get("town"),
+                        'post_code': item["address"].get("post_code"),
+                        'country': item["address"].get("country"),
+                    }
+                list_details_of_employment.append(temp_dict)
+
+            list_places_of_work = []
+
+            for item in document_data["places_of_work"]:
+                list_place_of_work = []
+                for item2 in item.get("place_of_work"):
+                    temp_dict = {
+                        'post_code': item2["address"].get("post_code"),
+                        'street': item2["address"].get("street"),
+                        'town': item2["address"].get("town"),
+                        'company_vessel_name': item2.get("company_vessel_name"),
+                        'flag_state_home_base': item2.get("flag_state_home_base"),
+                        'company_id': item2["ids_of_company"][0].get("company_id"),
+                        'type_of_id': item2["ids_of_company"][0].get("type_of_id"),
+                    }
+                    list_place_of_work.append(temp_dict)
+                list_places_of_work.append({'country_work': item.get("country_work"), 'a_fixed_place_of_work_exist': item.get("a_fixed_place_of_work_exist"), "place_of_work": list_place_of_work})
+
+            mapped_form = {
+                'social_security_pin': document_data.get("social_security_pin"),
+                'nationality': document_data.get("nationality"),
+                'details_of_employment': list_details_of_employment,
+                'places_of_work': list_places_of_work,
+                'decision_legislation_applicable': [{
+                    'member_state_which_legislation_applies': document_data["decision_legislation_applicable"].get("member_state_which_legislation_applies"),
+                    'transitional_rule_apply': document_data["decision_legislation_applicable"].get("transitional_rule_apply"),
+                    'starting_date': document_data["decision_legislation_applicable"].get("starting_date"),
+                    'ending_date': document_data["decision_legislation_applicable"].get("ending_date"),
+                }],
+                'status_confirmation': document_data.get("status_confirmation"),
+                'unique_number_of_issued_document': document_data.get("unique_number_of_issued_document"),
+                'competent_institution' :[{
+                    'institution_id': document_data["competent_institution"].get("institution_id"),
+                    'institution_name': document_data["competent_institution"].get("institution_name"),
+                    'country_code': document_data["competent_institution"].get("institution_country"),
+                }],
+                'version': '0.5',
+                'issuing_country': 'FC',
+                'issuing_authority': 'Test MDL issuer'
+            }
+
+        user_id = generate_unique_id()
+
+        form_dynamic_data[user_id] = mapped_form.copy()
+        form_dynamic_data[user_id].update({"expires": datetime.now() + timedelta(minutes=cfgserv.form_expiry)})
+
+        if "jws_token" not in session or "authorization_params" in session:
+            session["jws_token"] = session["authorization_params"]["token"]
+        session["returnURL"] = cfgserv.OpenID_first_endpoint
+
+        credentialsSupported = oidc_metadata["credential_configurations_supported"]
+
+        presentation_data = dict()
+
+        for credential_requested in session["credentials_requested"]:
+
+            scope = credentialsSupported[credential_requested]["scope"]
+
+            credential = credentialsSupported[credential_requested]["display"][0]["name"]
+
+            presentation_data.update({credential: {}})
+
+            credential_atributes_form = list()
+            credential_atributes_form.append(credential_requested)
+            attributesForm = getAttributesForm(credential_atributes_form).keys()
+            attributesForm2 = getAttributesForm2(credential_atributes_form).keys()
+
+            for attribute in mapped_form.keys():
+
+                if attribute in attributesForm:
+                    presentation_data[credential][attribute] = mapped_form[attribute]
+
+                if attribute in attributesForm2:
+                    presentation_data[credential][attribute] = mapped_form[attribute]
+
+            if "issuer_config" in credentialsSupported[credential_requested]:
+                doctype_config = credentialsSupported[credential_requested]["issuer_config"]
+
+            today = date.today()
+            expiry = today + timedelta(days=doctype_config["validity"])
+
+            presentation_data[credential].update({"estimated_issuance_date": today.strftime("%Y-%m-%d")})
+            presentation_data[credential].update({"estimated_expiry_date": expiry.strftime("%Y-%m-%d")})
+            presentation_data[credential].update({"issuing_country": session["country"]}),
+            presentation_data[credential].update({"issuing_authority": doctype_config["issuing_authority"]})
+
+            if "credential_type" in doctype_config:
+                presentation_data[credential].update({"credential_type": doctype_config["credential_type"]})
+
+            if "birth_date" in presentation_data[credential] and "age_over_18" in presentation_data[credential]:
+                presentation_data[credential].update({"age_over_18": True if calculate_age(
+                    presentation_data[credential]["birth_date"]) >= 18 else False})
+
+            if scope == "org.iso.18013.5.1.mDL":
+                if "birth_date" in presentation_data[credential]:
+                    presentation_data[credential].update({"age_over_18": True if calculate_age(
+                        presentation_data[credential]["birth_date"]) >= 18 else False})
+
+            if "driving_privileges" in presentation_data[credential]:
+                json_priv = json.loads(presentation_data[credential]["driving_privileges"])
+                presentation_data[credential].update({"driving_privileges": json_priv})
+
+            if "portrait" in presentation_data[credential]:
+                presentation_data[credential].update({"portrait": base64.b64encode(
+                    base64.urlsafe_b64decode(presentation_data[credential]["portrait"])).decode("utf-8")})
+
+            if "NumberCategories" in presentation_data[credential]:
+                for i in range(int(presentation_data[credential]["NumberCategories"])):
+                    f = str(i + 1)
+                    presentation_data[credential].pop("IssueDate" + f)
+                    presentation_data[credential].pop("ExpiryDate" + f)
+                presentation_data[credential].pop("NumberCategories")
+
+        return render_template("dynamic/form_authorize.html", presentation_data=presentation_data,
+                               user_id="FC." + user_id, redirect_url=cfgserv.service_url + "dynamic/redirect_wallet")
+
+    except requests.exceptions.RequestException as e:
+        # Log error and return failure response
+        cfgserv.app_logger.error(f"EHIC API call failed: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500

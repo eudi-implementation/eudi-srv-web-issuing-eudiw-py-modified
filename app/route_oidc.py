@@ -1105,12 +1105,13 @@ def credentialOffer():
         form.remove("proceed")
         form.remove("credential_offer_URI")
         form.remove("Authorization Code Grant")
-        all_exist = all(credential in credentialsSupported for credential in form)
+        selected_credential = request.form.get("credential_id")
+        issuer_state_input = request.form.get("issuer_state", "").strip()
 
-        if all_exist:
-            credentials_id = form
+        if selected_credential and selected_credential in credentialsSupported:
+            credentials_id = [selected_credential]
             session["credentials_id"] = credentials_id
-            credentials_id_list = json.dumps(form)
+            credentials_id_list = json.dumps(credentials_id)
             if auth_choice == "pre_auth_code":
                 session["credential_offer_URI"] = credential_offer_URI
                 return redirect(
@@ -1118,11 +1119,14 @@ def credentialOffer():
                 )
 
             else:
+                grants = {"authorization_code": {}}
+                if issuer_state_input:
+                    grants["authorization_code"]["issuer_state"] = issuer_state_input
 
                 credential_offer = {
                     "credential_issuer": cfgservice.service_url[:-1],
                     "credential_configuration_ids": credentials_id,
-                    "grants": {"authorization_code": {}},
+                    "grants": grants,
                 }
 
                 reference_id = str(uuid.uuid4())

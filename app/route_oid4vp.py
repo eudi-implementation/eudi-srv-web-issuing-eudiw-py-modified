@@ -25,8 +25,10 @@ import base64
 from datetime import date, timedelta, datetime
 import io
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from uuid import uuid4
+
+import jwt
 from flask import Blueprint, Flask, jsonify, render_template, request, session
 from flask_cors import CORS
 import requests
@@ -34,6 +36,7 @@ import segno
 from misc import generate_unique_id, authentication_error_redirect, getAttributesForm, getAttributesForm2, scope2details
 from formatter_func import cbor2elems
 
+from .route_dynamic import dc4eu_api_call
 from app.validate_vp_token import validate_vp_token
 from .app_config.config_service import ConfService as cfgservice
 
@@ -346,7 +349,34 @@ def getpidoid4vp():
                 elif attribute in attributesForm2:
                     attributesForm2[attribute]["filled_value"] = value
 
-        
+        jws = session["authorization_params"]["token"]
+        claims = jwt.decode(
+            jws,
+            options={"verify_signature": False}  # skip signature check
+        )
+        query_str = claims.get("query", "")
+        params = parse_qs(query_str)
+
+        if "issuer_state" in params and params["issuer_state"]:
+            collect_id = params["issuer_state"][0]
+
+            if params["scope"][0] == "eu.europa.ec.eudi.ehic_drv_mdoc":
+                document_type = "EHIC"
+            elif params["scope"][0] == "eu.europa.ec.eudi.pda1_drv_mdoc":
+                document_type = "PDA1"
+
+            data = {
+                "collect_id": collect_id,
+                "document_type": document_type,
+                "birth_date": mdoc_json['eu.europa.ec.eudi.pid.1'][0][1],
+                "authentic_source_person_id": mdoc_json['eu.europa.ec.eudi.pid.1'][1][1],
+                "family_name": mdoc_json['eu.europa.ec.eudi.pid.1'][2][1],
+                "given_name": mdoc_json['eu.europa.ec.eudi.pid.1'][3][1],
+                "issuing_country": mdoc_json['eu.europa.ec.eudi.pid.1'][4][1],
+                "nationality": mdoc_json['eu.europa.ec.eudi.pid.1'][5][1][0]
+            }
+            return dc4eu_api_call(data)
+
         return render_template(
             "dynamic/dynamic-form.html",
             mandatory_attributes=attributesForm,

@@ -390,6 +390,8 @@ class ConfService:
             "eu.europa.ec.eudi.hiid_mdoc",
             "eu.europa.ec.eudi.tax_mdoc",
             "eu.europa.ec.eudi.msisdn_mdoc",
+            "eu.europa.ec.eudi.ehic_drv_mdoc",
+            "eu.europa.ec.eudi.pda1_drv_mdoc",
         ],
         "country_selection": [
             "eu.europa.ec.eudi.loyalty_mdoc",
@@ -499,6 +501,30 @@ class ConfService:
                     "age_over_18",
                     "issuing_authority",
                     "issuing_country",
+                ]
+            }
+        },
+        "eu.europa.ec.eudi.ehic_drv_mdoc": {
+            "eu.europa.ec.eudi.pid.1": {
+                "eu.europa.ec.eudi.pid.1": [
+                    "family_name",
+                    "given_name",
+                    "birth_date",
+                    "authentic_source_person_id",
+                    "issuing_country",
+                    "nationality",
+                ]
+            }
+        },
+        "eu.europa.ec.eudi.pda1_drv_mdoc": {
+            "eu.europa.ec.eudi.pid.1": {
+                "eu.europa.ec.eudi.pid.1": [
+                    "family_name",
+                    "given_name",
+                    "birth_date",
+                    "authentic_source_person_id",
+                    "issuing_country",
+                    "nationality",
                 ]
             }
         },
