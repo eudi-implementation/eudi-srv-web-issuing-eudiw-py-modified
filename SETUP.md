@@ -470,7 +470,7 @@ If we want to use PID authentication, we have to specify which attributes need t
 
 ## 5. Connect to DC4EU datastore
 
-We assume the DC4EU docker containers (version 0.5.22) are running on the same host and the apigw is exposed on port 9080. You can find the repository with these changes [here](https://github.com/eudi-implementation/vc-minmod).
+We assume the DC4EU docker containers (version 0.5.22) are running on the same host and the apigw is exposed on port 9080. You can find the repository with these changes [here](https://github.com/eudi-implementation/dc4eu-vc-minmod).
 
 ### 1. Add Collect ID to Credential Offer
 
