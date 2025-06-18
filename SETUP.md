@@ -30,8 +30,14 @@ Flask) for Linux/macOS or Windows.
 
 ### 1. Clone the EUDIW Issuer repository:
 
+   If you're setting up everything yourself, clone the original repo:
    ```shell
-  git clone git@github.com:eu-digital-identity-wallet/eudi-srv-web-issuing-eudiw-py.git
+   git clone git@github.com:eu-digital-identity-wallet/eudi-srv-web-issuing-eudiw-py.git
+   ```
+
+   If you rely on the modifications made here, clone this repo:
+   ```shell
+   git clone git@github.com:eudi-implementation/eudi-srv-web-issuing-eudiw-py-modified.git
    ```
 
 ### 2. Create a `.venv` folder within the cloned repository:
@@ -464,7 +470,7 @@ If we want to use PID authentication, we have to specify which attributes need t
 
 ## 5. Connect to DC4EU datastore
 
-We assume the dc4eu docker containers (version 0.5.22) are running on the same host and the apigw is exposed on port 9080.
+We assume the DC4EU docker containers (version 0.5.22) are running on the same host and the apigw is exposed on port 9080. You can find the repository with these changes [here](https://github.com/eudi-implementation/vc-minmod).
 
 ### 1. Add Collect ID to Credential Offer
 
