@@ -475,7 +475,7 @@ We assume the DC4EU docker containers (version 0.5.22) are running on the same h
 ### 1. Add Collect ID to Credential Offer
 
 #### Frontend
-In `templates/openid/credential_offer.htlm`, change the credential type selection from checkbox to radio. This way only one credential can be offered at a time.
+In `templates/openid/credential_offer.html`, change the credential type selection from checkbox to radio. This way only one credential can be offered at a time.
 ```html
 <label class="form-check-label" for="flexCheckDefault">
   <input class="form-check-input" id="check" type="radio" name="credential_id" value="{{ credential_id }}"
